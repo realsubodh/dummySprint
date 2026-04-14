@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HMS - History</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-brand">Hotel Management</div>
+    <div class="nav-links" id="navbar-links"></div>
+    <div class="d-flex align-center gap-3">
+      <span id="user-display" style="font-weight: 500;"></span>
+      <button class="btn btn-secondary" onclick="window.HMS.logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h2 class="mb-3">Booking History</h2>
+
+    <div id="admin-search-container" class="card mb-3" style="display:none;">
+      <form id="historySearchForm" class="d-flex gap-2 align-center">
+        <label>User ID:</label>
+        <input type="text" id="searchUserId" class="form-control" placeholder="Enter Customer User ID" required>
+        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Search</button>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Booking ID</th>
+            <th>Type</th>
+            <th>Room No.</th>
+            <th>Dates</th>
+            <th>Status</th>
+            <th>Bill ($)</th>
+            <th>Booked On</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody">
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/reservation.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = window.HMS.checkAuth();
+      if(!user) return;
+      window.HMS.renderNavbar();
+
+      if (user.role === 'Customer') {
+        renderHistory(user.userId);
+      } else {
+        document.getElementById('admin-search-container').style.display = 'block';
+        document.getElementById('historySearchForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const sid = document.getElementById('searchUserId').value;
+          renderHistory(sid);
+        });
+      }
+    });
+
+    function renderHistory(userId) {
+      const tbody = document.getElementById('historyTableBody');
+      const bookings = window.HMS_Reservation.getUserBookings(userId).reverse();
+      
+      if(bookings.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center">No history found for this user.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = bookings.map(b => `
+        <tr>
+          <td>${b.bookingId}</td>
+          <td>${b.roomType}</td>
+          <td>${b.roomNumber || 'N/A'}</td>
+          <td>${b.checkIn} to ${b.checkOut}</td>
+          <td>
+            <span class="badge ${b.status === 'Checked-out' || b.status==='Approved' ? 'badge-success' : b.status === 'Rejected' ? 'badge-danger' : 'badge-warning'}">
+              ${b.status}
+            </span>
+          </td>
+          <td>${b.totalBill.toFixed(2)}</td>
+          <td>${new Date(b.bookingDate).toLocaleDateString()}</td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

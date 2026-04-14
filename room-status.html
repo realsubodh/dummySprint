@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HMS - Room Status</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-brand">Hotel Management</div>
+    <div class="nav-links" id="navbar-links"></div>
+    <div class="d-flex align-center gap-3">
+      <span id="user-display" style="font-weight: 500;"></span>
+      <button class="btn btn-secondary" onclick="window.HMS.logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h2 class="mb-3">Room Status</h2>
+
+    <div class="card mb-3">
+      <form id="roomSearchForm" class="d-flex gap-2 align-center">
+        <label>Filter by Customer ID (Optional):</label>
+        <input type="text" id="searchUserId" class="form-control" placeholder="Leave empty for all rooms">
+        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Check Status</button>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Room Number</th>
+            <th>Type</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Occupant (User ID)</th>
+          </tr>
+        </thead>
+        <tbody id="roomTableBody">
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/reservation.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = window.HMS.checkAuth(['Admin']);
+      if(!user) return;
+      window.HMS.renderNavbar();
+
+      const allRooms = generateMockRooms();
+      
+      document.getElementById('roomSearchForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const sid = document.getElementById('searchUserId').value.trim();
+        renderRooms(allRooms, sid);
+      });
+
+      renderRooms(allRooms, '');
+    });
+
+    function generateMockRooms() {
+      const types = [
+        { type: 'Single', price: 100, count: 5 },
+        { type: 'Double', price: 150, count: 5 },
+        { type: 'Suite', price: 300, count: 3 },
+        { type: 'Deluxe', price: 500, count: 2 }
+      ];
+      
+      let rooms = [];
+      types.forEach(t => {
+        for(let i=1; i<=t.count; i++) {
+          rooms.push({
+            number: `${t.type.charAt(0)}${100 + i}`,
+            type: t.type,
+            price: t.price
+          });
+        }
+      });
+      return rooms;
+    }
+
+    function renderRooms(rooms, filterUserId) {
+      const tbody = document.getElementById('roomTableBody');
+      const bookings = window.HMS.getBookings();
+      const activeBookings = bookings.filter(b => ['Approved', 'Checked-in'].includes(b.status));
+
+      const roomData = rooms.map(r => {
+        const currentBooking = activeBookings.find(b => b.roomNumber === r.number);
+        return {
+          ...r,
+          status: currentBooking ? 'Booked' : 'Vacant',
+          userId: currentBooking ? currentBooking.userId : '-'
+        };
+      });
+
+      const filtered = filterUserId 
+        ? roomData.filter(r => r.userId === filterUserId)
+        : roomData;
+
+      tbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td>${r.number}</td>
+          <td>${r.type}</td>
+          <td>$${r.price} / night</td>
+          <td>
+            <span class="badge ${r.status === 'Vacant' ? 'badge-success' : 'badge-danger'}">
+              ${r.status}
+            </span>
+          </td>
+          <td>${r.userId}</td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

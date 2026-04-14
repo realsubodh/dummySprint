@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HMS - Billing</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-brand">Hotel Management</div>
+    <div class="nav-links" id="navbar-links"></div>
+    <div class="d-flex align-center gap-3">
+      <span id="user-display" style="font-weight: 500;"></span>
+      <button class="btn btn-secondary" onclick="window.HMS.logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div id="alertBox" class="alert"></div>
+
+    <!-- CUSTOMER VIEW -->
+    <div id="customer-view" style="display:none; max-width: 600px; margin: 0 auto;">
+      <h2 class="mb-3">Current Billing</h2>
+      <div class="card" id="customerBillCard">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="admin-view" style="display:none; max-width: 800px; margin: 0 auto;">
+      <h2 class="mb-3">Generate Invoice</h2>
+      <div class="card mb-3">
+        <form id="adminSearchForm" class="d-flex gap-2">
+          <input type="text" id="searchUserId" class="form-control" placeholder="Enter User ID" required>
+          <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Find Active Booking</button>
+        </form>
+      </div>
+
+      <div id="adminInvoiceCard" class="card" style="display: none;">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/billing.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = window.HMS.checkAuth();
+      if(!user) return;
+      window.HMS.renderNavbar();
+
+      if (user.role === 'Customer') {
+        document.getElementById('customer-view').style.display = 'block';
+        renderCustomerBill(user.userId);
+      } else {
+        document.getElementById('admin-view').style.display = 'block';
+        
+        document.getElementById('adminSearchForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const sid = document.getElementById('searchUserId').value;
+          renderAdminInvoice(sid);
+        });
+      }
+    });
+
+    function renderCustomerBill(userId) {
+      const booking = window.HMS_Billing.getLatestBooking(userId);
+      const card = document.getElementById('customerBillCard');
+      
+      if (!booking || booking.status === 'Pending' || booking.status === 'Rejected') {
+        card.innerHTML = `<p class="text-center text-secondary">You do not have any active approved or checked-in bookings to pay for.</p>`;
+        return;
+      }
+
+      const invoice = window.HMS_Billing.generateInvoice(booking.bookingId);
+
+      card.innerHTML = `
+        <h3 class="mb-2">Booking: ${booking.bookingId}</h3>
+        <p><strong>Room Type:</strong> ${booking.roomType} ${booking.roomNumber ? `(Room ${booking.roomNumber})` : ''}</p>
+        <p><strong>Dates:</strong> ${booking.checkIn} to ${booking.checkOut}</p>
+        <hr style="margin: 1rem 0; border: none; border-top: 1px dashed var(--border-color);">
+        <div class="mb-2">
+          <div class="d-flex space-between mb-1">
+            <span>Room Charges:</span>
+            <span>$${invoice.baseCharge.toFixed(2)}</span>
+          </div>
+          <div class="d-flex space-between mb-1">
+            <span>Taxes (18%):</span>
+            <span>$${invoice.taxes.toFixed(2)}</span>
+          </div>
+          <div class="d-flex space-between mb-1">
+            <span>Additional (${invoice.extraChargeDesc}):</span>
+            <span>$${invoice.extraCharges.toFixed(2)}</span>
+          </div>
+        </div>
+        <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--border-color);">
+        <div class="d-flex space-between mb-3" style="font-size: 1.25rem; font-weight: 700;">
+          <span>Total Bill:</span>
+          <span>$${invoice.grandTotal.toFixed(2)}</span>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="payBill('${booking.bookingId}', ${invoice.grandTotal})">Pay Bill</button>
+      `;
+    }
+
+    function renderAdminInvoice(userId) {
+      const booking = window.HMS_Billing.getLatestBooking(userId);
+      const card = document.getElementById('adminInvoiceCard');
+      card.style.display = 'block';
+      
+      if (!booking || booking.status === 'Pending' || booking.status === 'Rejected') {
+        card.innerHTML = `<p class="text-center text-secondary" style="color:red;">No active bookings found for this user.</p>`;
+        return;
+      }
+
+      const invoice = window.HMS_Billing.generateInvoice(booking.bookingId);
+
+      card.innerHTML = `
+        <h3 class="mb-2">Invoice for ${booking.bookingId}</h3>
+        <p><strong>User:</strong> ${booking.userId}</p>
+        <p><strong>Dates:</strong> ${booking.checkIn} to ${booking.checkOut}</p>
+        <hr style="margin: 1rem 0; border: none; border-top: 1px dashed var(--border-color);">
+        
+        <table class="table mb-2">
+          <tr><td>Base Charge:</td><td style="text-align: right;">$${invoice.baseCharge.toFixed(2)}</td></tr>
+          <tr><td>Taxes:</td><td style="text-align: right;">$${invoice.taxes.toFixed(2)}</td></tr>
+          <tr><td>${invoice.extraChargeDesc}:</td><td style="text-align: right;">$${invoice.extraCharges.toFixed(2)}</td></tr>
+          <tr style="font-weight: 700; background: var(--bg-color);">
+            <td>Grand Total:</td>
+            <td style="text-align: right; color: var(--primary-color);">$${invoice.grandTotal.toFixed(2)}</td>
+          </tr>
+        </table>
+        
+        <div class="d-flex gap-2">
+          <input type="number" id="addChargeAmt" class="form-control" placeholder="Add Amount (e.g. 50)">
+          <button class="btn btn-secondary" onclick="addMockCharge('${booking.bookingId}', document.getElementById('searchUserId').value)" style="white-space: nowrap;">Add Charge</button>
+        </div>
+      `;
+    }
+
+    window.payBill = (bId, amt) => {
+      window.location.href = `payment.html?bId=${bId}&amt=${amt}`;
+    };
+
+    window.addMockCharge = (bId, uId) => {
+      const amt = document.getElementById('addChargeAmt').value;
+      if(!amt || isNaN(amt)) return;
+      window.HMS_Billing.addExtraCharge(bId, amt);
+      renderAdminInvoice(uId);
+    };
+  </script>
+</body>
+</html>
