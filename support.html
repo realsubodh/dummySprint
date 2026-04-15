@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HMS - Support</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-brand">Hotel Management</div>
+    <div class="nav-links" id="navbar-links"></div>
+    <div class="d-flex align-center gap-3">
+      <span id="user-display" style="font-weight: 500;"></span>
+      <button class="btn btn-secondary" onclick="window.HMS.logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="dashboard-grid">
+      
+      <div>
+        <h2 class="mb-3">Contact Us</h2>
+        <div class="card form-group">
+          <p class="mb-1"><strong>📞 Support Helpline:</strong> +1 800 555 1234</p>
+          <p class="mb-1"><strong>✉️ Email:</strong> support@hms.local</p>
+          <p class="mb-1"><strong>🏢 Address:</strong> 123 Hospitality Ave, Suite 100, City</p>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="mb-3">Submit Feedback / Complaint</h2>
+        <div class="card">
+          <div id="alertBox" class="alert"></div>
+          <form id="supportForm">
+            <div class="form-group">
+              <label>Complaint Type</label>
+              <select id="compType" class="form-control" required>
+                <option value="Room Service">Room Service</option>
+                <option value="Cleaning">Cleaning</option>
+                <option value="Billing">Billing Issue</option>
+                <option value="General Feedback">General Feedback</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Room Number</label>
+              <input type="text" id="compRoom" class="form-control" placeholder="Optional">
+            </div>
+            <div class="form-group">
+              <label>Contact Number</label>
+              <input type="text" id="compContact" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Customer ID</label>
+              <input type="text" id="compUser" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Message</label>
+              <textarea id="compMessage" class="form-control" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Submit</button>
+          </form>
+        </div>
+      </div>
+      
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = window.HMS.checkAuth();
+      if(!user) return;
+      window.HMS.renderNavbar();
+
+      if(user.role === 'customer') {
+        document.getElementById('compUser').value = user.userId;
+      }
+
+      document.getElementById('supportForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        window.HMS.showAlert('Feedback submitted successfully. Our team will contact you shortly.', 'success');
+        e.target.reset();
+        if(user.role === 'customer') {
+          document.getElementById('compUser').value = user.userId;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HMS - Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-brand">Hotel Management</div>
+    <div class="nav-links" id="navbar-links">
+      <!-- Injected via main.js -->
+    </div>
+    <div class="d-flex align-center gap-3">
+      <span id="user-display" style="font-weight: 500;"></span>
+      <button class="btn btn-secondary" onclick="window.HMS.logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h2 class="mb-3">Dashboard Overview</h2>
+    
+    <div class="dashboard-grid" id="customer-dashboard" style="display:none;">
+      <div class="stat-card">
+        <h3 id="c-total-bookings">0</h3>
+        <p>Total Bookings</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="c-pending-bookings">0</h3>
+        <p>Pending Approval</p>
+      </div>
+    </div>
+
+    <div class="dashboard-grid" id="admin-dashboard" style="display:none;">
+      <div class="stat-card">
+        <h3 id="a-active-customers">0</h3>
+        <p>Total Customers</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="a-pending-requests">0</h3>
+        <p>Pending Reservations</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="a-total-revenue">$0</h3>
+        <p>Total Revenue</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/main.js"></script>
+  <script src="js/reservation.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = window.HMS.checkAuth();
+      if(!user) return;
+      window.HMS.renderNavbar();
+
+      const bookings = window.HMS.getBookings();
+      
+      if (user.role === 'customer') {
+        document.getElementById('customer-dashboard').style.display = 'grid';
+        const userBookings = bookings.filter(b => b.userId === user.userId);
+        document.getElementById('c-total-bookings').textContent = userBookings.length;
+        document.getElementById('c-pending-bookings').textContent = userBookings.filter(b => b.status==='pending').length;
+      } else {
+        document.getElementById('admin-dashboard').style.display = 'grid';
+        const customers = window.HMS.getUsers().filter(u => u.role === 'customer');
+        document.getElementById('a-active-customers').textContent = customers.length;
+        document.getElementById('a-pending-requests').textContent = window.HMS_Reservation.getPendingBookings().length;
+        const revenue = window.HMS.getPayments().reduce((acc, curr) => acc + curr.amount, 0);
+        document.getElementById('a-total-revenue').textContent = `$${revenue}`;
+      }
+    });
+  </script>
+</body>
+</html>
