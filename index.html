@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>HMS - Login</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body class="center-wrapper">
 
   <div class="card" style="width: 100%; max-width: 400px;">
     <h2 class="text-center mb-2" style="color: var(--primary-color);">Welcome to HMS</h2>
     <p class="text-center mb-3">Sign in to your account</p>
-    
+
     <div id="alertBox" class="alert"></div>
 
     <form id="loginForm">
@@ -42,16 +44,16 @@
     document.addEventListener('DOMContentLoaded', () => {
       // Auto redirect if already logged in
       const user = window.HMS.getCurrentUser();
-      if(user) window.location.href = 'dashboard.html';
+      if (user) window.location.href = 'dashboard.html';
 
       document.getElementById('loginForm').addEventListener('submit', (e) => {
         e.preventDefault();
         const userId = document.getElementById('userId').value;
         const pass = document.getElementById('password').value;
         const role = document.getElementById('role').value;
-        
+
         const res = window.HMS_Auth.login(userId, pass, role);
-        if(res.success) {
+        if (res.success) {
           window.location.href = 'dashboard.html';
         } else {
           window.HMS.showAlert(res.msg, 'error');
@@ -60,4 +62,5 @@
     });
   </script>
 </body>
+
 </html>
