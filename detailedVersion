@@ -1,0 +1,315 @@
+Your project becomes “dynamic” mainly because of JavaScript doing 4 things repeatedly across pages:
+
+Storing data in the browser (localStorage) like a mini-database (users, bookings, payments, session).
+Listening to user actions (form submit, dropdown change, button click).
+Generating HTML on the fly using template strings and inserting it into the page (innerHTML).
+Routing/controlling access by redirecting users depending on login + role.
+Below is the full functional logic (only JavaScript/dynamic behavior), explained in layman language, page-by-page and file-by-file.
+
+1) The “Engine” of the project: js/main.js (Global HMS object)
+This file creates a global object window.HMS which is like the core service layer used everywhere.
+
+A) LocalStorage as a database
+getUsers() / setUsers(users)
+getBookings() / setBookings(bookings)
+getPayments() / setPayments(payments)
+getCurrentUser() / setCurrentUser(user)
+How it works (layman):
+
+localStorage is permanent browser memory (until cleared).
+Data must be stored as strings, so the code uses:
+JSON.stringify(object) before saving
+JSON.parse(string) after reading
+So instead of a server/database, the whole app runs like a frontend-only mock system.
+
+B) Session management (login stays active)
+setCurrentUser() stores a trimmed session object in localStorage under the key "session".
+getCurrentUser() reads it back.
+logout() removes "session" and sends you back to index.html.
+Why it makes the app dynamic: Because every page checks session and decides:
+
+“Allow this user” or
+“Kick back to login” or
+“Redirect based on role”
+C) checkAuth(rolesAllowed)
+This is the gatekeeper used on almost every page.
+
+Logic:
+
+If there is no logged-in user → redirect to index.html
+If the user role is not allowed on that page → redirect to dashboard.html
+Else return the user object
+Viva-ready line: “Every page is protected by a client-side auth guard that checks a session object in localStorage.”
+
+D) renderNavbar()
+Navbar links are not hard-coded; they are injected via JS depending on role.
+
+Admin gets extra links like Room Status, Reservation management, etc.
+Customer gets limited links.
+Then it highlights the active link using:
+
+link.classList.add('active')
+Why it’s dynamic: Same HTML navbar placeholder, but content differs based on who logged in.
+
+E) showAlert(msg, type)
+Displays messages inside an element (usually #alertBox) dynamically:
+
+sets textContent
+changes class name: alert success or alert error
+shows it for 5 seconds using setTimeout
+Viva tip: If manager asks “How alerts disappear automatically?” Answer: “A timer (setTimeout) hides it after 5 seconds.”
+
+F) showModal(modalId) / hideModal(modalId)
+Adds/removes the CSS class active to show/hide modal overlays.
+
+G) Data cleanup / compatibility: migrateStorage()
+This is a “migration script” that:
+
+checks for older storage keys (hms_currentUser, userData, hms_users, etc.)
+merges them into the new standard keys (session, users, bookings, payments)
+removes junk keys (like those starting with acc_)
+In simple words: “If someone used an older version of this app, their browser storage is upgraded automatically.”
+
+H) seedAdmin()
+If no admin exists, it auto-creates one:
+
+userId: admin
+password: Admin@123
+Must know for viva: This is how your app guarantees an admin exists even in a fresh browser.
+
+2) Authentication logic: js/auth.js (Register + Login)
+This file defines window.HMS_Auth.
+
+A) Password validation using Regex
+validatePassword(pwd) uses a regular expression:
+
+at least 1 lowercase
+at least 1 uppercase
+at least 1 special character
+minimum length 8
+Layman explanation: Regex is a “pattern checker.” It checks if the password matches the security rules.
+
+B) Register flow: register(data)
+Steps:
+
+Check password strength
+Check confirm password matches
+Check if userId already exists (duplicate prevention)
+Create new user object
+Push into users array → save to localStorage
+Returns success/failure messages that pages show using HMS.showAlert.
+
+C) Login flow: login(userId, password, role)
+Steps:
+
+Read all users from localStorage
+Find a matching user with same id + password + role
+If found:
+Store session {userId, name, role} only (not the whole user record)
+Return success/failure
+Important point: This app is not using hashing or server auth; it’s a mock frontend auth.
+
+3) Reservation logic: js/reservation.js (Bookings lifecycle)
+This file defines window.HMS_Reservation.
+
+A) Room pricing table
+roomPrices is basically the rate card used to compute bill.
+
+B) calculateDays(checkIn, checkOut)
+Converts strings to Date objects
+Subtracts dates to get milliseconds
+converts to days
+ensures minimum 1 day
+Layman: “Date subtraction gives time difference; then we convert it into number of nights.”
+
+C) createBooking(...)
+Creates a booking object like:
+
+bookingId (generated)
+userId, name, contact
+checkIn, checkOut
+roomType
+roomNumber: null initially
+billAmount computed
+status: 'pending'
+bookingDate: current time
+Then it saves into localStorage.
+
+Viva-ready: “Booking is created in ‘pending’ state; admin later approves and assigns a room.”
+
+D) updateBookingStatus(bookingId, status, roomNumber)
+Admin actions call this to move booking through:
+
+pending → approved (with room number)
+approved → checked-in
+checked-out after payment (in billing logic)
+rejected
+4) Billing & payment logic: js/billing.js
+Defines window.HMS_Billing.
+
+A) getLatestBooking(userId)
+Finds last active booking for a user (ignores checked-out and rejected).
+
+B) generateInvoice(bookingId)
+Computes:
+
+baseCharge = booking.billAmount
+taxes = 18% of base (mock GST)
+extra charges (room service etc.)
+grand total = base + taxes + extras
+Key concept: Invoice is calculated dynamically each time, not stored permanently.
+
+C) addExtraCharge(bookingId, amount)
+Adds extra charges into booking object and saves.
+
+D) processPayment(bookingId, amount)
+Creates a payment entry:
+
+transactionId
+bookingId
+userId
+amount
+status: paid
+Then for mock simplicity it auto checks out the booking:
+
+HMS_Reservation.updateBookingStatus(bookingId, 'checked-out')
+Viva: “Once payment is successful, booking status is updated to checked-out.”
+
+Page-by-page “dynamic behavior” (inline scripts)
+index.html (Login page)
+Dynamic parts:
+
+On load: if session already exists → redirect to dashboard.html
+On submit: prevent page reload, read input values, call HMS_Auth.login()
+Show error alert or redirect on success
+Trigger: DOMContentLoaded, form submit
+State read/write: reads users/session; writes session
+
+register.html
+On form submit: prevent reload
+build a data object from inputs
+call HMS_Auth.register(data)
+show success/error
+redirect to login after 2 seconds on success (setTimeout)
+Trigger: form submit
+State write: users array in localStorage
+
+dashboard.html
+On load:
+
+checkAuth()
+renderNavbar()
+Reads bookings/users/payments and updates dashboard numbers.
+Customer view shows:
+
+total bookings
+pending bookings count
+Admin view shows:
+
+total customers
+pending reservations count
+total revenue = sum of all payment amounts (reduce)
+Trigger: page load
+Dynamic: updates text of <h3> values
+
+reservation.html
+Two modes:
+
+Customer:
+Shows booking form
+Sets minimum date to today for date inputs
+Auto-fills guest name from session
+On submit:
+validates check-out after check-in
+calls createBooking()
+shows booking id
+Admin:
+Generates table using .map() + template strings
+For pending bookings: shows dropdown with actions
+Uses a global function window.handleAction(...)
+Approve → asks room number using prompt()
+Updates status and re-renders table
+Key dynamic concept: Admin table isn’t static HTML; it’s generated from booking objects.
+
+billing.html
+Two modes:
+
+Customer:
+loads latest booking
+if approved/checked-in: generates invoice UI dynamically
+“Pay Bill” button redirects to payment page with query params: payment.html?bId=...&amt=...
+Admin:
+search userId
+shows invoice
+can add mock charges, then re-renders invoice
+Dynamic pieces:
+
+conditional rendering (no active booking → show message)
+generating full invoice HTML via innerHTML
+payment.html
+reads URL query parameters using URLSearchParams
+if missing bId/amt → show error and disable Pay button
+shows amount
+on submit:
+calls processPayment() to create txn + checkout booking
+displays transaction id
+shows modal (CSS class toggle)
+Trigger: form submit
+State write: payments + booking status
+
+bookings.html
+Loads bookings based on role:
+customer → only their bookings
+admin → all bookings
+Filters to upcoming/active (pending/approved/checked-in)
+Renders cards dynamically using map().join('')
+history.html
+Customer automatically sees their history.
+Admin sees a search form, enters a userId and fetches that user’s bookings.
+Renders booking rows with formatted date: new Date(b.bookingDate).toLocaleDateString()
+room-status.html
+Creates mock room list in JS (not stored)
+Reads bookings and marks rooms:
+Booked if any active booking assigned to that room
+Vacant otherwise
+Allows filtering by Customer ID
+Renders table dynamically
+Key logic: It “joins” room list with active bookings to compute status.
+
+support.html
+Auto-fills customer ID if role is customer
+On submit:
+shows success alert
+resets form
+re-fills customer id again
+This page is mostly UI mock (no storage/network), but still dynamic due to form handling.
+
+Must-know points for your viva (high impact)
+There is no backend.
+All persistence is localStorage (users/bookings/payments/session). Mention it confidently.
+
+Session auth is client-side only.
+checkAuth() protects pages using the session key.
+
+Role-based UI exists.
+Same pages, but content and navbar change based on user.role.
+
+Dynamic rendering pattern used everywhere:
+
+get data array
+filter/transform it
+build HTML using template strings
+inject using innerHTML
+Reservation lifecycle (this is the story to tell):
+Customer creates booking → pending
+Admin approves + assigns room → approved
+Admin checks-in customer → checked-in
+Customer pays bill → payment saved + booking becomes checked-out
+History page shows the trail
+IDs are generated randomly.
+generateId(prefix) is used for Booking IDs and Transaction IDs.
+
+Admin account is auto-created. If no admin exists, the system seeds:
+
+user: admin
+pass: Admin@123
