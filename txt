@@ -1,0 +1,58 @@
+🎓 Hotel Management System (HMS) - Viva Preparation Guide
+This guide breaks down all the dynamic JavaScript logic running your project so you can confidently explain it during your manager's viva. Since you're not using React or Node.js, your project heavily relies on "Vanilla JavaScript" (plain JS) and the browser's built-in memory (localStorage).
+
+Here is a layman's breakdown of how your application's brain actually works.
+
+🏗️ 1. The Core Architecture: Data Storage (main.js)
+The Layman's Explanation: Normally, apps use a backend server and a database (like SQL or MongoDB) to save data. This project fakes a database by using localStorage. LocalStorage is a special box in the user's browser that remembers data even if they close the tab or refresh the page.
+
+However, localStorage can only save text (strings). It cannot save complex JavaScript Objects or Arrays directly.
+
+How the Code Handles This: In your main.js, you have basic "get" and "set" functions like getUsers and setUsers.
+
+JSON.stringify(data): Takes your fancy JS arrays and objects and turns them into a plain text string so localStorage can save it.
+JSON.parse(data): Takes that plain text string out of localStorage and magically rebuilds it into a usable JavaScript Array or Object.
+Viva Must-Know: If the manager asks, "Where is the data stored?", you answer: "Data is persisted locally in the browser using localStorage. We use JSON stringification to serialize arrays of objects into strings, and JSON parsing to deserialize them back into active data."
+
+🛠️ 2. Namespacing & Global Variables (window.HMS)
+The Layman's Explanation: Imagine you have a huge toolbox, and you just throw all your tools in randomly. It would be a mess. In JavaScript, if you create functions normally, they float around randomly in the "global scope". This can cause bugs if two functions share the same name.
+
+Instead, your code uses Namespaces like window.HMS, window.HMS_Auth, window.HMS_Reservation. You created a neat "folder" (an Object) and put all related tools inside it.
+
+Viva Must-Know: If the manager asks about your code structure, say: "I avoided polluting the global scope by grouping related methods into single global objects, acting as namespaces. For example, everything related to billing is kept safely inside the window.HMS_Billing object."
+
+👤 3. Authentication & Sessions (auth.js & main.js)
+User Registration
+Password Validation: The code uses a "Regular Expression" (Regex) to check if the password contains 1 uppercase, 1 lowercase, 1 special character, and is 8 characters long.
+Saving Users: When someone registers, the app pulls the existing array of users from localStorage, pushes the new user object into that array, and saves the array back.
+Login & Session Management
+When a user logs in, window.HMS_Auth.login() checks if their User ID and password match a record in the database (localStorage).
+If successful, it creates a Session. It does this by saving a tiny piece of data (User ID, Name, Role) under the key 'session' in localStorage.
+Viva Must-Know: How does the app know if someone is an Admin or a Customer? Answer: "When a user logs in, we store a specialized 'session' object in localStorage that contains their 'role'. Every page checks this session upon loading. This is our state management. Depending on whether user.role === 'admin' or 'customer', functions like renderNavbar() will dynamically hide or show specific HTML links."
+
+📅 4. The Reservation Logic (reservation.js)
+The Layman's Explanation: When a user books a room, you need to know how many days they are staying to calculate their bill.
+
+You take the checkOut date and minus the checkIn date. But JavaScript does date math in milliseconds.
+The calculateDays() function takes that huge millisecond number and divides it by (1000 * 60 * 60 * 24) to magically convert it back into days (1000ms * 60 seconds * 60 minutes * 24 hours).
+Price calculation: It grabs the daily price from a dictionary map (roomPrices), multiplies it by days, and attaches status: 'pending' to the booking.
+Viva Must-Know: "Date mathematics in JavaScript defaults to Unix Time (milliseconds). To get accurate billing, our calculateDays function extracts the absolute time difference and parses it into whole 24-hour days to calculate the base bill amount dynamically."
+
+💳 5. Billing & Payment Interactivity (billing.js)
+The Layman's Explanation: Billing merges the initial reservation bill with any "extra charges" (like room service) the Admin applied.
+
+generateInvoice() acts as a calculator. It takes the base bill, calculates an 18% GST mock tax, adds the extra charges, and arrives at the grandTotal.
+The Payment Domino Effect: When a payment is processed (processPayment), it creates a standard payment receipt with a generated TXN (transaction) ID. Here is the cool part: It automatically triggers updateBookingStatus to change the booking from approved to checked-out.
+Viva Must-Know: "Our modules talk to each other. When window.HMS_Billing.processPayment finishes successfully, it inherently triggers the Reservation module to update the room status to 'checked-out'. This ensures our separate data arrays stay perfectly in sync."
+
+🧹 6. The "Magic" Cleanup Function: migrateStorage()
+The Layman's Explanation: During development, data structures often change. Maybe past versions of the code saved "Admin Bookings" and "Customer Bookings" in separate keys, creating a fractured mess.
+
+Every time your app starts, it runs window.HMS.migrateStorage(). This is an intelligent cleanup script. It looks for old, outdated variable names (like userData or hms_users) and merges them into the new, clean, unified arrays (users). It then deletes the old traces.
+
+Viva Must-Know: If your manager is technical, this is what you flex! "To ensure backward compatibility and a single source of truth, I implemented a migrateStorage routine. It runs on runtime initialization and seamlessly bridges legacy disparate datasets (like scattered admin and customer keys) into unified collections, preventing data loss and eliminating data duplication."
+
+🚨 Final Tips for Your Presentation
+Be confident about "State": When the manager asks how the UI updates, say: "The UI is state-driven. We use JavaScript functions to read the state from localStorage and dynamically construct HTML strings (like in renderNavbar) through DOM manipulation rather than hardcoding identical navbars on every HTML page."
+Explain "Mock" IDs: If they ask how things get an ID without a backend database: "We use our generateId(prefix) helper, which merges a string prefix like 'BKG' for Bookings with Math.random(), effectively giving us solid randomized unique identifier strings for mapping relationships."
+No External Dependencies: Highlight the constraint! "The greatest achievement here is that there are no third-party libraries. All the logic, routing validation, string handling, and component rendering is 100% vanilla JavaScript."
