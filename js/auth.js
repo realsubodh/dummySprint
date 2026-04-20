@@ -4,12 +4,21 @@ window.HMS_Auth = {
     return re.test(pwd);
   },
 
+  validateEmail: (email) => {
+    // Requires @ and a domain part like .com
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  },
+
   register: (data) => {
-    if (!window.HMS_Auth.validatePassword(data.password)) {
-      return { success: false, msg: "Password must have 1 uppercase, 1 lowercase, 1 special char, and be min 8 chars long." };
+    if (!window.HMS_Auth.validateEmail(data.email)) {
+      return { success: false, msg: "Please enter a valid email address (e.g., user@example.com)." };
     }
     if (data.password !== data.confirmPassword) {
       return { success: false, msg: "Passwords do not match." };
+    }
+    if (!window.HMS_Auth.validatePassword(data.password)) {
+      return { success: false, msg: "Password must have 1 uppercase, 1 lowercase, 1 special char, and be min 8 chars long." };
     }
     
     const users = window.HMS.getUsers();
